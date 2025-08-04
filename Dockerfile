@@ -15,13 +15,9 @@ RUN apt-get update && apt-get install -y \
     gcc \
     make \
     tar \
-    systemd \
-    systemctl \
     dnsutils \
     net-tools \
     iputils-ping \
-    dig \
-    nslookup \
     sudo \
     vim \
     && rm -rf /var/lib/apt/lists/*
