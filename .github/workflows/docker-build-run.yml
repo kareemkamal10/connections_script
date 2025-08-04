@@ -2,11 +2,9 @@ name: Build and Test Docker
 
 on:
   push:
-    branches:
-      - main
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build-and-test:
@@ -22,21 +20,21 @@ jobs:
         run: |
           docker build -t secure-connection .
 
-      - name: Test Docker image build
+      - name: Test Docker image build (release)
         run: |
           docker images secure-connection
 
-      - name: Test basic container functionality
+      - name: Test basic container functionality (release)
         run: |
           echo "Testing container basic functionality..."
           docker run --rm secure-connection python3 --version
 
-      - name: Test network connectivity in container
+      - name: Test network connectivity in container (release)
         run: |
           echo "Testing network connectivity..."
           docker run --rm --network=host secure-connection ping -c 3 8.8.8.8 || true
 
-      - name: Test DNS resolution in container
+      - name: Test DNS resolution in container (release)
         run: |
           echo "Testing DNS resolution..."
           docker run --rm --network=host secure-connection nslookup google.com || true
