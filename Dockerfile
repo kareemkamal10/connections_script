@@ -4,27 +4,28 @@ FROM ubuntu:22.04
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies in two stages for better caching
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
-    python3-dev \
     wget \
     curl \
+    ca-certificates \
+    dnsutils \
+    net-tools \
+    iputils-ping \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
+
+# Install build tools only if needed (separate layer for better caching)
+RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
     make \
     tar \
-    systemd \
-    dnsutils \
-    net-tools \
-    iputils-ping \
     bind9-dnsutils \
     sudo \
-    vim \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-ca-certificates
+    && rm -rf /var/lib/apt/lists/*
 
 # Create application directory
 WORKDIR /app
@@ -33,7 +34,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies (optional)
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir -r requirements.txt; fi
 
 # Copy application code
 COPY . .
@@ -41,28 +42,16 @@ COPY . .
 # Make scripts executable
 RUN chmod +x main.py
 
-# Create necessary directories
-RUN mkdir -p /opt/softether \
-    && mkdir -p /opt/dnscrypt-proxy \
-    && mkdir -p /var/log
-
-# Set up logging
-RUN touch /var/log/secure_connection.log
-
-# Create a non-root user for safer operation (when not requiring root privileges)
-RUN useradd -m -s /bin/bash appuser \
-    && usermod -aG sudo appuser
-
-# Expose common ports (optional, for monitoring)
-EXPOSE 53/udp 53/tcp
+# Create necessary directories and setup
+RUN mkdir -p /opt/softether /opt/dnscrypt-proxy /var/log && \
+    touch /var/log/secure_connection.log && \
+    useradd -m -s /bin/bash appuser && \
+    usermod -aG sudo appuser
 
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-
-# Add health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+ENV TEST_MODE=1
 
 # Default command - run the main script
 CMD ["python3", "main.py", "--verbose"]
