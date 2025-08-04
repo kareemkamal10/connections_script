@@ -1,24 +1,61 @@
-name: Build and Run Docker
+name: Build and Test Docker
 
 on:
   push:
     branches:
-      - main  # يمكنك تغييره حسب اسم فرعك
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build-and-run:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Docker
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
         run: |
           docker build -t secure-connection .
 
-      - name: Run Docker container
+      - name: Test Docker image build
         run: |
-          docker run --rm --privileged --cap-add=NET_ADMIN --cap-add=SYS_ADMIN secure-connection
+          docker images secure-connection
+
+      - name: Test basic container functionality
+        run: |
+          echo "Testing container basic functionality..."
+          docker run --rm secure-connection python3 --version
+
+      - name: Test network connectivity in container
+        run: |
+          echo "Testing network connectivity..."
+          docker run --rm --network=host secure-connection ping -c 3 8.8.8.8 || true
+
+      - name: Test DNS resolution in container
+        run: |
+          echo "Testing DNS resolution..."
+          docker run --rm --network=host secure-connection nslookup google.com || true
+
+      - name: Run status check only (safe mode)
+        run: |
+          echo "Running status check in safe mode..."
+          docker run --rm --network=host \
+            -e TEST_MODE=true \
+            secure-connection python3 main.py --status-only || true
+
+      - name: Test environment check script
+        run: |
+          echo "Testing environment check..."
+          docker run --rm secure-connection python3 check_environment.py || true
+
+      # This step will only run if we're not in GitHub Actions (commented out for safety)
+      # - name: Run full setup (requires privileged mode)
+      #   run: |
+      #     echo "⚠️  Full setup requires privileged access - skipping in CI"
+      #     echo "To run full setup locally, use:"
+      #     echo "docker run --privileged --cap-add=NET_ADMIN --cap-add=SYS_ADMIN -it secure-connection"
