@@ -1,2 +1,26 @@
-# Core dependencies only for faster CI builds
+# Python requirements for the secure connection script
+# Most functionality uses standard library, but these may be helpful
+
+# For better HTTP requests (optional, urllib is used by default)
 requests>=2.25.0
+
+# For advanced JSON handling (optional, json module is used by default)
+simplejson>=3.17.0
+
+# For better subprocess handling (optional)
+subprocess32>=3.5.4; python_version<"3.0"
+
+# For enhanced logging capabilities (optional)
+colorlog>=6.6.0
+
+# For configuration file parsing (optional)
+configparser>=5.2.0
+
+# For better argument parsing (optional, argparse is built-in)
+click>=8.0.0
+
+# For DNS testing utilities (optional)
+dnspython>=2.1.0
+
+# Note: The main script is designed to work with standard library only
+# These dependencies are optional enhancements

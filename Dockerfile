@@ -1,64 +1,30 @@
-# Dockerfile optimized for GitHub Actions CI environment
+# Dockerfile for Secure Anonymous Connection Script
 FROM ubuntu:22.04
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# CI Environment Detection
-ENV CI=true
-ENV GITHUB_ACTIONS=true
-ENV TEST_MODE=true
-
-# Install system dependencies optimized for CI
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
+    python3-dev \
     wget \
     curl \
-    ca-certificates \
+    build-essential \
+    gcc \
+    make \
+    tar \
+    systemd \
     dnsutils \
     net-tools \
     iputils-ping \
-    iproute2 \
+    bind9-dnsutils \
+    sudo \
+    vim \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && update-ca-certificates
-
-# Install minimal build tools for CI
-RUN apt-get update && apt-get install -y \
-    gcc \
-    make \
-    sudo \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create mock systemctl for CI environment
-RUN echo '#!/bin/bash\n\
-case "$1" in\n\
-  "is-active")\n\
-    case "$2" in\n\
-      "dnscrypt-proxy") echo "inactive" ;;\n\
-      "systemd-resolved") echo "active" ;;\n\
-      *) echo "inactive" ;;\n\
-    esac\n\
-    exit 0 ;;\n\
-  "enable"|"start"|"stop"|"restart")\n\
-    echo "systemctl $1 $2 (simulated in CI)"\n\
-    exit 0 ;;\n\
-  "status")\n\
-    echo "● $2.service - Mock service for CI"\n\
-    echo "   Active: active (running) since $(date)"\n\
-    exit 0 ;;\n\
-  *)\n\
-    echo "systemctl: $* (mocked for CI environment)"\n\
-    exit 0 ;;\n\
-esac' > /usr/bin/systemctl && \
-    chmod +x /usr/bin/systemctl
-
-# Create mock VPN tools for CI
-RUN mkdir -p /opt/softether /opt/dnscrypt-proxy /var/log && \
-    echo '#!/bin/bash\necho "VPN simulation: $*"' > /usr/bin/vpncmd && \
-    chmod +x /usr/bin/vpncmd && \
-    echo '#!/bin/bash\necho "DNSCrypt simulation: $*"' > /usr/bin/dnscrypt-proxy && \
-    chmod +x /usr/bin/dnscrypt-proxy
 
 # Create application directory
 WORKDIR /app
@@ -66,9 +32,8 @@ WORKDIR /app
 # Copy requirements first for better Docker caching
 COPY requirements.txt .
 
-# Install Python dependencies with CI optimizations
-RUN pip3 install --no-cache-dir --disable-pip-version-check \
-    $(if [ -f requirements.txt ]; then cat requirements.txt; else echo "requests"; fi)
+# Install Python dependencies (optional)
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -76,23 +41,31 @@ COPY . .
 # Make scripts executable
 RUN chmod +x main.py
 
-# Setup user and permissions for CI
-RUN useradd -m -s /bin/bash appuser && \
-    echo "appuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    touch /var/log/secure_connection.log && \
-    chown appuser:appuser /var/log/secure_connection.log && \
-    chown -R appuser:appuser /app
+# Create necessary directories
+RUN mkdir -p /opt/softether \
+    && mkdir -p /opt/dnscrypt-proxy \
+    && mkdir -p /var/log
 
-# Environment variables for CI
+# Set up logging
+RUN touch /var/log/secure_connection.log
+
+# Create a non-root user for safer operation (when not requiring root privileges)
+RUN useradd -m -s /bin/bash appuser \
+    && usermod -aG sudo appuser
+
+# Expose common ports (optional, for monitoring)
+EXPOSE 53/udp 53/tcp
+
+# Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
-ENV CI_MOCK_MODE=1
 
-# Switch to app user
-USER appuser
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
 
-# Default command optimized for CI
-CMD ["python3", "main.py", "--status-only", "--verbose"]
+# Default command - run the main script
+CMD ["python3", "main.py", "--verbose"]
 
 # Alternative entry points for different use cases:
 # 
