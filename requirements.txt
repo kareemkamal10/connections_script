@@ -2,7 +2,7 @@
 # Most functionality uses standard library, but these may be helpful
 
 # For better HTTP requests (optional, urllib is used by default)
-requests>=2.25.0
+requests>=2.28.2
 
 # For advanced JSON handling (optional, json module is used by default)
 simplejson>=3.17.0
